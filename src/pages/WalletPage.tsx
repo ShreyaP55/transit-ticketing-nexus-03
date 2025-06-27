@@ -7,7 +7,6 @@ import { Wallet, CreditCard, Navigation, MapPin, Clock } from 'lucide-react';
 import { useUser } from "@/context/UserContext";
 import UserQRCode from "@/components/wallet/UserQRCode";
 import WalletCard from "@/components/wallet/WalletCard";
-import ActiveTicketDisplay from "@/components/tickets/ActiveTicketDisplay";
 import { ridesAPI } from "@/services/api";
 import { IRide } from "@/types";
 import { toast } from "sonner";
@@ -78,9 +77,9 @@ const WalletPage = () => {
   return (
     <MainLayout title="My Wallet">
       <div className="max-w-7xl mx-auto p-6 bg-background min-h-screen">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column - QR Code and Wallet */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="space-y-6">
             {/* QR Code Card */}
             <div>
               <h3 className="text-lg font-medium mb-3 flex items-center text-card-foreground">
@@ -98,15 +97,6 @@ const WalletPage = () => {
               </h3>
               <WalletCard />
             </div>
-          </div>
-          
-          {/* Middle Column - Active Tickets */}
-          <div className="lg:col-span-1">
-            <h3 className="text-lg font-medium mb-3 flex items-center text-card-foreground">
-              <Navigation className="mr-2 h-5 w-5 text-primary" />
-              Active Tickets
-            </h3>
-            <ActiveTicketDisplay />
           </div>
           
           {/* Right Column - Ride History */}

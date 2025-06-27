@@ -4,7 +4,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { tripsAPI } from "@/services/api/trips";
 import { useUser } from "@/context/UserContext";
-import { validateQRCode } from "@/utils/qrSecurity";
 
 export const useQRScanPageLogic = () => {
   const { userId } = useParams<{ userId: string }>();
@@ -14,7 +13,10 @@ export const useQRScanPageLogic = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTrip, setActiveTrip] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated, userId: currentUserId } = useUser();
+
+  // Check if current user is authorized to perform actions
+  const isAuthorized = isAuthenticated && (currentUserId === userId || currentUserId === 'admin');
 
   // Get current location with high accuracy
   useEffect(() => {
@@ -64,6 +66,19 @@ export const useQRScanPageLogic = () => {
           const trip = await tripsAPI.getActiveTrip(userId);
           console.log("Active trip result:", trip);
           setActiveTrip(trip);
+          
+          // Automatically perform action based on trip status
+          if (isAuthorized && location) {
+            if (trip) {
+              // User has active trip, auto check-out
+              console.log("Auto-checking out user with active trip");
+              setTimeout(() => handleCheckOut(), 2000);
+            } else {
+              // No active trip, auto check-in
+              console.log("Auto-checking in user without active trip");
+              setTimeout(() => handleCheckIn(), 2000);
+            }
+          }
         }
       } catch (error) {
         console.error("Error checking active trip:", error);
@@ -71,23 +86,22 @@ export const useQRScanPageLogic = () => {
     };
     
     checkActiveTrip();
-  }, [userId, isAuthenticated]);
+  }, [userId, isAuthenticated, location, isAuthorized]);
 
   // Handle check-in
   const handleCheckIn = async () => {
-    if (!userId || !location || !isAuthenticated) return;
+    if (!userId || !location) return;
+    
+    if (!isAuthorized) {
+      toast.error("Access Denied", {
+        description: "You are not authorized to perform this action",
+      });
+      return;
+    }
     
     try {
       setIsProcessing(true);
       console.log("Starting check-in process for user:", userId, "at location:", location);
-      
-      // Validate QR code if userId is encrypted
-      if (userId.length > 50) {
-        const validation = validateQRCode(userId);
-        if (!validation.isValid) {
-          throw new Error(validation.error || 'Invalid QR code');
-        }
-      }
       
       // Start a new trip
       const result = await tripsAPI.startTrip(userId, location.lat, location.lng);
@@ -110,7 +124,14 @@ export const useQRScanPageLogic = () => {
 
   // Handle check-out
   const handleCheckOut = async () => {
-    if (!userId || !location || !activeTrip || !isAuthenticated) return;
+    if (!userId || !location || !activeTrip) return;
+    
+    if (!isAuthorized) {
+      toast.error("Access Denied", {
+        description: "You are not authorized to perform this action",
+      });
+      return;
+    }
     
     try {
       setIsProcessing(true);
@@ -166,7 +187,7 @@ export const useQRScanPageLogic = () => {
     error,
     activeTrip,
     isProcessing,
-    isAuthenticated,
+    isAuthenticated: isAuthorized,
     handleCheckIn,
     handleCheckOut,
     handleCancel,

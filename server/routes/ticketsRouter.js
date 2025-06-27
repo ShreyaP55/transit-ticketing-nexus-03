@@ -31,9 +31,9 @@ router.get('/', async (req, res) => {
 // Create ticket
 router.post('/', async (req, res) => {
   try {
-    const { userId, routeId, busId, startStation, endStation, price, paymentIntentId, expiryDate } = req.body;
+    const { userId, routeId, busId, selectedStation, price, paymentIntentId } = req.body;
     
-    if (!userId || !routeId || !busId || !startStation || !price || !paymentIntentId) {
+    if (!userId || !routeId || !busId || !selectedStation || !price || !paymentIntentId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -62,11 +62,11 @@ router.post('/', async (req, res) => {
       userId,
       routeId,
       busId,
-      startStation,
-      endStation: endStation || startStation,
+      selectedStation,
       price: parseFloat(price),
       paymentIntentId,
-      expiryDate: expiryDate || new Date(Date.now() + 24 * 60 * 60 * 1000) // Default to 24hrs from now
+      purchasedAt: new Date(),
+      expiresAt: new Date(Date.now() + 7 * 60 * 60 * 1000) // 7 hours from now
     });
     
     await newTicket.save();

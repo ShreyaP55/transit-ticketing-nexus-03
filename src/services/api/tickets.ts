@@ -15,11 +15,9 @@ export const ticketsAPI = {
     userId: string; 
     routeId: string; 
     busId: string; 
-    startStation: string; 
-    endStation: string; 
+    selectedStation: string; 
     price: number; 
     paymentIntentId: string; 
-    expiryDate: Date 
   }): Promise<{ success: boolean; ticket: ITicket }> =>
     fetchAPI("/tickets", {
       method: "POST",

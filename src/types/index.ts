@@ -28,11 +28,13 @@ export interface ITicket {
   userId: string;
   routeId: string | IRoute;
   busId: string | IBus;
-  startStation: string;
-  endStation: string;
+  selectedStation: string;
   price: number;
   paymentIntentId: string;
-  expiryDate: string;
+  purchasedAt: string;
+  expiresAt: string;
+  isActive: boolean;
+  isExpired: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -58,6 +60,9 @@ export interface IPassUsage {
   passId: string | IPass;
   scannedAt: string;
   location?: string;
+  verifiedBy?: string; // Admin who verified the usage
+  busId?: string;
+  stationName?: string;
 }
 
 export interface IPayment {
