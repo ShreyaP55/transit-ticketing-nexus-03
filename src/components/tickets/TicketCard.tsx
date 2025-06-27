@@ -11,7 +11,7 @@ interface TicketCardProps {
 }
 
 export const TicketCard = ({ ticket, className }: TicketCardProps) => {
-  const isExpired = new Date(ticket.expiryDate) < new Date();
+  const isExpired = ticket.isExpired;
   const routeDisplay = getRouteDisplay(ticket.routeId);
   const busName = getBusName(ticket.busId);
 
@@ -24,7 +24,7 @@ export const TicketCard = ({ ticket, className }: TicketCardProps) => {
             {isExpired && <span className="ml-2 text-sm font-normal text-red-500">(Expired)</span>}
           </h3>
           <div className="bg-transit-blue text-white px-2 py-1 rounded-full text-xs">
-            ${ticket.price}
+            ₹{ticket.price}
           </div>
         </div>
         
@@ -37,14 +37,14 @@ export const TicketCard = ({ ticket, className }: TicketCardProps) => {
           <div className="flex items-center gap-2">
             <MapPin size={16} className="text-transit-blue" />
             <span>
-              {ticket.startStation} → {ticket.endStation}
+              Station: {ticket.selectedStation}
             </span>
           </div>
           
           <div className="flex items-center gap-2">
             <Clock size={16} className="text-transit-blue" />
             <span>
-              Valid until: {format(new Date(ticket.expiryDate), "MMM d, yyyy h:mm a")}
+              Valid until: {format(new Date(ticket.expiresAt), "MMM d, yyyy h:mm a")}
             </span>
           </div>
         </div>

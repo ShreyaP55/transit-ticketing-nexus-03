@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -79,11 +78,9 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ open, onOpenChan
         userId,
         routeId: selectedRouteId,
         busId: selectedBusId,
-        startStation: selectedStation?.name || "Selected Station",
-        endStation: selectedStation?.name || "Selected Station",
+        selectedStation: selectedStation?.name || "Selected Station",
         price,
-        paymentIntentId: `ticket_${Date.now()}`,
-        expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
+        paymentIntentId: `ticket_${Date.now()}`
       });
 
       if (response.success) {

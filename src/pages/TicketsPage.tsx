@@ -25,11 +25,11 @@ const TicketsPage = () => {
   });
 
   const activeTickets = tickets.filter(
-    (ticket) => new Date(ticket.expiryDate) > new Date()
+    (ticket) => !ticket.isExpired && ticket.isActive
   );
 
   const expiredTickets = tickets.filter(
-    (ticket) => new Date(ticket.expiryDate) <= new Date()
+    (ticket) => ticket.isExpired || !ticket.isActive
   );
 
   const handleNewTicket = () => {

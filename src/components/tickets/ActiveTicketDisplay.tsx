@@ -20,7 +20,7 @@ const ActiveTicketDisplay: React.FC = () => {
 
   // Filter for active tickets only
   const activeTickets = Array.isArray(tickets) 
-    ? tickets.filter((ticket: ITicket) => new Date(ticket.expiryDate) > new Date())
+    ? tickets.filter((ticket: ITicket) => !ticket.isExpired && ticket.isActive)
     : [];
 
   if (isLoading) {
@@ -101,14 +101,14 @@ const ActiveTicketDisplay: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-primary" />
                     <span className="text-muted-foreground">
-                      Station: {ticket.startStation}
+                      Station: {ticket.selectedStation}
                     </span>
                   </div>
                   
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-primary" />
                     <span className="text-muted-foreground">
-                      Valid until: {format(new Date(ticket.expiryDate), "MMM d, yyyy h:mm a")}
+                      Valid until: {format(new Date(ticket.expiresAt), "MMM d, yyyy h:mm a")}
                     </span>
                   </div>
                 </div>

@@ -7,6 +7,7 @@ type UserRole = "user" | "admin";
 type UserContextType = {
   isAuthenticated: boolean;
   userId: string | null;
+  user: any;
   userDetails: any;
   isAdmin: boolean;
   userRole: UserRole;
@@ -17,6 +18,7 @@ type UserContextType = {
 const UserContext = createContext<UserContextType>({
   isAuthenticated: false,
   userId: null,
+  user: null,
   userDetails: null,
   isAdmin: false,
   userRole: "user",
@@ -75,6 +77,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <UserContext.Provider value={{ 
       isAuthenticated: !!userId, 
       userId, 
+      user,
       userDetails,
       isAdmin: userRole === "admin",
       userRole,
