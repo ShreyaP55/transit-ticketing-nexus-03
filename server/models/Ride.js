@@ -49,7 +49,7 @@ RideSchema.methods.calculateDistance = function() {
   return parseFloat(distance.toFixed(2));
 };
 
-// Calculate fare based on distance
+// Calculate fare based on distance (₹8 per km, minimum ₹20)
 RideSchema.methods.calculateFare = function() {
   const distance = this.calculateDistance();
   this.distance = distance;
@@ -58,7 +58,7 @@ RideSchema.methods.calculateFare = function() {
   const baseFare = 20;
   const perKmCharge = 8;
   
-  const fare = baseFare + (distance * perKmCharge);
+  const fare = Math.max(baseFare, baseFare + (distance * perKmCharge));
   this.fare = Math.round(fare);
   
   return this.fare;

@@ -42,8 +42,8 @@ export const useTripOperations = () => {
       console.log("Check-out successful:", result);
       
       if (result.success) {
-        const fare = result.trip?.fare || 0;
-        const distance = result.trip?.distance || 0;
+        const fare = result.fare || result.trip?.fare || 0;
+        const distance = result.trip?.distance || result.distance || 0;
         const tripDetails = `Distance: ${distance.toFixed(2)} km, Fare: ₹${fare.toFixed(2)}`;
 
         if (result.deduction?.status === 'success') {
@@ -51,10 +51,15 @@ export const useTripOperations = () => {
             description: `${tripDetails}. ${result.deduction.message}`,
             duration: 6000,
           });
-        } else {
+        } else if (result.deduction?.status === 'error') {
           toast.warning("Trip completed, but payment issue occurred.", {
             description: `${tripDetails}. ${result.deduction?.message || 'Payment processing failed.'}`,
             duration: 8000,
+          });
+        } else {
+          toast.success("Trip completed successfully!", {
+            description: tripDetails,
+            duration: 5000,
           });
         }
       } else {

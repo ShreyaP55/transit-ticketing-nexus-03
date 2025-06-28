@@ -1,3 +1,4 @@
+
 import express from 'express';
 import Trip from '../models/Trip.js';
 import Wallet from '../models/Wallet.js';
@@ -11,10 +12,35 @@ router.use(securityLogger);
 router.use(sanitizeInput);
 router.use(tripRateLimit);
 
+// Haversine distance calculation function
+const calculateDistance = (coord1, coord2) => {
+  const toRadians = (degree) => degree * (Math.PI / 180);
+  
+  const lat1 = coord1.latitude || coord1.lat;
+  const lon1 = coord1.longitude || coord1.lng;
+  const lat2 = coord2.latitude || coord2.lat;
+  const lon2 = coord2.longitude || coord2.lng;
+  
+  const R = 6371; // Earth's radius in kilometers
+  
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c; // Distance in kilometers
+  
+  return parseFloat(distance.toFixed(2));
+};
+
 // Start a new trip
 router.post('/start', authenticateUser, validateTrip, async (req, res) => {
   try {
-    const { userId, latitude, longitude } = req.body;
+    const { userId, latitude, longitude, busId } = req.body;
 
     // Verify user owns this request
     if (req.user.id !== userId && req.user.role !== 'admin') {
@@ -42,26 +68,31 @@ router.post('/start', authenticateUser, validateTrip, async (req, res) => {
         latitude,
         longitude,
         timestamp: new Date()
-      }
+      },
+      busId: busId || 'default_bus',
+      active: true
     });
 
     await trip.save();
     console.log('Trip started:', { userId, tripId: trip._id, timestamp: new Date().toISOString() });
     
-    res.json({ success: true, trip });
+    res.json({ success: true, trip, rideId: trip._id });
   } catch (error) {
     console.error('Error starting trip:', error);
     res.status(500).json({ error: 'Failed to start trip' });
   }
 });
 
-// End a trip
+// End a trip with fare calculation and wallet deduction
 router.put('/:tripId/end', authenticateUser, validateTrip, async (req, res) => {
   try {
     const { tripId } = req.params;
-    const { latitude, longitude } = req.body;
+    const { latitude, longitude, endCoords } = req.body;
 
-    if (latitude === undefined || longitude === undefined) {
+    const finalLatitude = latitude || endCoords?.lat;
+    const finalLongitude = longitude || endCoords?.lng;
+
+    if (finalLatitude === undefined || finalLongitude === undefined) {
       return res.status(400).json({ error: 'latitude and longitude are required' });
     }
 
@@ -80,25 +111,37 @@ router.put('/:tripId/end', authenticateUser, validateTrip, async (req, res) => {
     }
 
     // Validate coordinates
-    if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+    if (Math.abs(finalLatitude) > 90 || Math.abs(finalLongitude) > 180) {
       return res.status(400).json({ error: 'Invalid coordinates' });
     }
 
     // Set end location
     trip.endLocation = {
-      latitude,
-      longitude,
+      latitude: finalLatitude,
+      longitude: finalLongitude,
       timestamp: new Date()
     };
     trip.active = false;
 
-    // Calculate distance, fare, and duration
-    trip.calculateDistance();
-    trip.calculateFare();
+    // Calculate distance and fare
+    const startCoords = {
+      lat: trip.startLocation.latitude,
+      lng: trip.startLocation.longitude
+    };
+    const endCoords = {
+      lat: finalLatitude,
+      lng: finalLongitude
+    };
+
+    const distance = calculateDistance(startCoords, endCoords);
+    const fare = Math.max(distance * 8, 20); // ₹8 per km, minimum ₹20
+
+    trip.distance = distance;
+    trip.fare = Math.round(fare);
     trip.calculateDuration();
 
     await trip.save();
-    console.log('Trip ended:', { userId: trip.userId, tripId: trip._id, fare: trip.fare, timestamp: new Date().toISOString() });
+    console.log('Trip ended:', { userId: trip.userId, tripId: trip._id, fare: trip.fare, distance, timestamp: new Date().toISOString() });
     
     // Deduct fare from user's wallet
     let deduction = { status: 'pending', message: 'Deduction not attempted.' };
@@ -106,9 +149,20 @@ router.put('/:tripId/end', authenticateUser, validateTrip, async (req, res) => {
       if (trip.fare > 0) {
         const wallet = await Wallet.findOne({ userId: trip.userId });
         if (wallet) {
-          await wallet.deductFunds(trip.fare, `Bus fare for trip`, trip._id);
-          deduction = { status: 'success', message: `₹${trip.fare.toFixed(2)} was deducted from wallet.` };
-          console.log(`Fare deducted for trip ${trip._id} from user ${trip.userId}`);
+          if (wallet.balance >= trip.fare) {
+            await wallet.deductFunds(trip.fare, `Bus fare for trip - Distance: ${distance}km`, trip._id);
+            deduction = { 
+              status: 'success', 
+              message: `₹${trip.fare.toFixed(2)} deducted from wallet. Remaining balance: ₹${(wallet.balance - trip.fare).toFixed(2)}` 
+            };
+            console.log(`Fare deducted for trip ${trip._id} from user ${trip.userId}`);
+          } else {
+            deduction = { 
+              status: 'error', 
+              message: `Insufficient funds. Required: ₹${trip.fare}, Available: ₹${wallet.balance}` 
+            };
+            console.warn(`Insufficient funds for user ${trip.userId} for trip ${trip._id}`);
+          }
         } else {
           deduction = { status: 'error', message: 'User wallet not found.' };
           console.warn(`Wallet not found for user ${trip.userId} for trip ${trip._id}`);
@@ -126,7 +180,17 @@ router.put('/:tripId/end', authenticateUser, validateTrip, async (req, res) => {
       }
     }
     
-    res.json({ success: true, trip, deduction });
+    res.json({ 
+      success: true, 
+      trip: {
+        ...trip.toObject(),
+        distance,
+        fare: trip.fare
+      }, 
+      deduction,
+      fare: trip.fare,
+      remainingWalletBalance: deduction.status === 'success' ? 'Updated' : 'Unchanged'
+    });
   } catch (error) {
     console.error('Error ending trip:', error);
     res.status(500).json({ error: 'Failed to end trip' });
@@ -151,16 +215,14 @@ router.get('/active/:userId', authenticateUser, requireOwnership('userId'), asyn
   }
 });
 
-// Get all trips for a user
 router.get('/user/:userId', authenticateUser, requireOwnership('userId'), async (req, res) => {
   try {
     const { userId } = req.params;
     
     const trips = await Trip.find({ userId })
       .sort({ createdAt: -1 })
-      .limit(50); // Limit to last 50 trips
+      .limit(50);
     
-    // Transform trips for frontend consumption
     const formattedTrips = trips.map(trip => ({
       _id: trip._id,
       status: trip.active ? 'active' : 'completed',
