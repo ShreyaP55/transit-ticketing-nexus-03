@@ -5,6 +5,8 @@ import { connect } from '../utils/mongoConnect.js';
 import User from '../models/User.js';
 import Wallet from '../models/Wallet.js';
 import Payment from '../models/Payment.js';
+import Ticket from '../models/Ticket.js';
+import Pass from '../models/Pass.js';
 
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -58,8 +60,39 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
         });
       }
 
-      // ✅ Update wallet balance based on payment type
-      if (payment.type === 'wallet') {
+      // ✅ Process based on payment type
+      if (payment.type === 'ticket') {
+        // Create ticket after successful payment
+        const newTicket = new Ticket({
+          userId: payment.userId,
+          routeId: session.metadata?.routeId,
+          busId: session.metadata?.busId,
+          selectedStation: session.metadata?.stationId || 'Selected Station',
+          price: payment.fare,
+          paymentIntentId: session.id,
+          purchasedAt: new Date(),
+          expiresAt: new Date(Date.now() + 7 * 60 * 60 * 1000) // 7 hours from now
+        });
+        
+        await newTicket.save();
+        console.log(`✅ Ticket created for ${user.clerkId}: ₹${payment.fare}`);
+        
+      } else if (payment.type === 'pass') {
+        // Create pass after successful payment
+        const expiryDate = new Date();
+        expiryDate.setMonth(expiryDate.getMonth() + 1);
+        
+        const newPass = new Pass({
+          userId: payment.userId,
+          routeId: payment.routeId,
+          fare: payment.fare,
+          expiryDate
+        });
+        
+        await newPass.save();
+        console.log(`✅ Pass created for ${user.clerkId}: ₹${payment.fare}`);
+        
+      } else if (payment.type === 'wallet') {
         // For wallet top-up, add funds
         await wallet.addFunds(payment.fare, 'Wallet top-up via Stripe');
         console.log(`✅ Wallet updated for ${user.clerkId}: ₹${payment.fare}`);

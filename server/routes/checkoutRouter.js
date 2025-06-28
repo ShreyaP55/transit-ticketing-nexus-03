@@ -45,7 +45,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Missing required field for pass: routeId' });
     }
 
-    // Create Stripe checkout session
+    // Create Stripe checkout session with metadata
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -62,8 +62,8 @@ router.post('/', async (req, res) => {
         },
       ],
       mode: 'payment',
-      success_url: `${req.headers.origin || 'http://localhost:5173'}/${type}?status=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.origin || 'http://localhost:5173'}/${type}?status=cancel`,
+      success_url: `${req.headers.origin || 'http://localhost:5173'}/${type === 'ticket' ? 'tickets' : type}?status=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.origin || 'http://localhost:5173'}/${type === 'ticket' ? 'tickets' : type}?status=cancel`,
       metadata: {
         userId,
         type,

@@ -1,13 +1,14 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
-import { routesAPI, busesAPI, stationsAPI, ticketsAPI } from "@/services/api";
+import { routesAPI, busesAPI, stationsAPI } from "@/services/api";
 import { toast } from "sonner";
 import { MapPin, Bus, CreditCard } from "lucide-react";
 import { useUser } from "@/context/UserContext";
-import { useQueryClient } from "@tanstack/react-query";
+import { stripeService } from "@/services/stripeService";
 
 interface NewTicketModalProps {
   open: boolean;
@@ -16,7 +17,6 @@ interface NewTicketModalProps {
 
 export const NewTicketModal: React.FC<NewTicketModalProps> = ({ open, onOpenChange }) => {
   const { userId } = useUser();
-  const queryClient = useQueryClient();
   const [selectedRouteId, setSelectedRouteId] = useState("");
   const [selectedBusId, setSelectedBusId] = useState("");
   const [selectedStationId, setSelectedStationId] = useState("");
@@ -66,33 +66,29 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ open, onOpenChan
 
   const price = selectedStation?.fare || 0;
 
-  // Booking
-  const handleProceedToBuy = async () => {
+  // Proceed to Stripe checkout
+  const handleProceedToCheckout = async () => {
     if (!selectedRouteId || !selectedBusId || !selectedStationId || !userId) return;
 
     try {
       setIsProcessing(true);
-      toast.info("Creating ticket...");
+      toast.info("Redirecting to payment...");
 
-      const response = await ticketsAPI.create({
-        userId,
-        routeId: selectedRouteId,
-        busId: selectedBusId,
-        selectedStation: selectedStation?.name || "Selected Station",
-        price,
-        paymentIntentId: `ticket_${Date.now()}`
-      });
+      const session = await stripeService.createTicketCheckoutSession(
+        selectedStationId,
+        selectedBusId,
+        price
+      );
 
-      if (response.success) {
-        toast.success("Ticket purchased successfully!");
-        queryClient.invalidateQueries({ queryKey: ["tickets", userId] });
-        onOpenChange(false);
+      if (session && session.url) {
+        // Redirect to Stripe checkout
+        await stripeService.redirectToCheckout(session.url);
       } else {
-        toast.error("Failed to create ticket");
+        toast.error("Failed to create payment session");
       }
     } catch (error) {
-      console.error("Ticket creation error:", error);
-      toast.error("Failed to create ticket");
+      console.error("Checkout error:", error);
+      toast.error("Failed to process payment");
     } finally {
       setIsProcessing(false);
     }
@@ -105,7 +101,7 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ open, onOpenChan
           className="bg-gray-900 rounded-lg shadow overflow-hidden"
           onSubmit={e => {
             e.preventDefault();
-            handleProceedToBuy();
+            handleProceedToCheckout();
           }}>
           <DialogHeader className="bg-gradient-to-r from-blue-600/20 to-transparent px-6 py-4 border-b border-gray-700">
             <DialogTitle className="flex items-center text-lg sm:text-xl text-white">
@@ -206,7 +202,7 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ open, onOpenChan
               className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
             >
               <CreditCard className="mr-2 h-4 w-4" />
-              {isProcessing ? "Purchasing..." : "Buy Ticket"}
+              {isProcessing ? "Redirecting..." : "Proceed to Payment"}
             </Button>
           </DialogFooter>
         </form>
