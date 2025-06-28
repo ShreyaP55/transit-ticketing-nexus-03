@@ -36,10 +36,28 @@ export const passesAPI = {
     const userId = getAuthToken();
     return fetchAPI(`/pass-usage?userId=${userId}`);
   },
-    
-  recordPassUsage: (passId: string, location: string): Promise<{ message: string; usage: IPassUsage }> =>
-    fetchAPI("/pass-usage", {
+
+  getAllPassUsages: (): Promise<IPassUsage[]> => {
+    return fetchAPI("/pass-usage/admin");
+  },
+
+  verifyPassUsage: (usageId: string, isVerified: boolean, verifiedBy: string): Promise<{ success: boolean; message: string }> => {
+    return fetchAPI(`/pass-usage/${usageId}/verify`, {
       method: "POST",
-      body: JSON.stringify({ passId, location }),
-    }),
+      body: JSON.stringify({ isVerified, verifiedBy }),
+    });
+  },
+    
+  recordPassUsage: (passData: { 
+    passId: string; 
+    location?: string; 
+    busId?: string; 
+    stationName?: string; 
+  }): Promise<{ message: string; usage: IPassUsage }> => {
+    const userId = getAuthToken();
+    return fetchAPI("/pass-usage", {
+      method: "POST",
+      body: JSON.stringify({ ...passData, userId }),
+    });
+  },
 };

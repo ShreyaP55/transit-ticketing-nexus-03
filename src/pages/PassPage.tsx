@@ -1,10 +1,12 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar, CreditCard, AlertCircle, ClockIcon, MapPin, Check, CheckCircle, History } from "lucide-react";
+import { Calendar, CreditCard, AlertCircle, ClockIcon, MapPin, Check, CheckCircle, History, QrCode } from "lucide-react";
 import { routesAPI, passesAPI, paymentAPI } from "@/services/api";
 import MainLayout from "@/components/layout/MainLayout";
 import { PassCard } from "@/components/passes/PassCard";
+import { PassQRCode } from "@/components/passes/PassQRCode";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -145,6 +147,7 @@ const PassPage = () => {
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="w-full mb-6">
                 <TabsTrigger value="current" className="flex-1">Current Pass</TabsTrigger>
+                <TabsTrigger value="qr-code" className="flex-1">QR Code</TabsTrigger>
                 <TabsTrigger value="usage" className="flex-1">Usage History</TabsTrigger>
               </TabsList>
               
@@ -194,6 +197,24 @@ const PassPage = () => {
                     </Button>
                   </CardFooter>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="qr-code">
+                <div className="max-w-md mx-auto">
+                  <PassQRCode pass={activePass} />
+                  <Card className="mt-4">
+                    <CardContent className="p-4">
+                      <div className="text-center space-y-2">
+                        <QrCode className="mx-auto h-8 w-8 text-primary" />
+                        <h3 className="font-medium">How to use your pass</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Show this QR code to the bus conductor or admin for verification. 
+                          Each scan will be recorded for tracking your daily travel.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               </TabsContent>
               
               <TabsContent value="usage">
