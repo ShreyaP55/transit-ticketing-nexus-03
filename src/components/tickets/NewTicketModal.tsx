@@ -2,15 +2,13 @@
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { MapPin, CreditCard } from "lucide-react";
+import { MapPin, CreditCard, Search, ChevronDown } from "lucide-react";
 import { useUser } from "@/context/UserContext";
 import { stripeService } from "@/services/stripeService";
 import { useTicketModal } from "@/hooks/useTicketModal";
-import { RouteSelector } from "./selectors/RouteSelector";
-import { BusSelector } from "./selectors/BusSelector";
-import { StationSelector } from "./selectors/StationSelector";
-import { PriceDisplay } from "./display/PriceDisplay";
+import { TicketBookingForm } from "./forms/TicketBookingForm";
 
 interface NewTicketModalProps {
   open: boolean;
@@ -20,6 +18,7 @@ interface NewTicketModalProps {
 export const NewTicketModal: React.FC<NewTicketModalProps> = ({ open, onOpenChange }) => {
   const { userId } = useUser();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const {
     selectedRouteId,
@@ -34,12 +33,17 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ open, onOpenChan
     loadingRoutes,
     loadingBuses,
     loadingStations,
-    price
+    price,
+    selectedRoute,
+    selectedBus,
+    selectedStation
   } = useTicketModal(open);
 
-  // Proceed to Stripe checkout
   const handleProceedToCheckout = async () => {
-    if (!selectedRouteId || !selectedBusId || !selectedStationId || !userId) return;
+    if (!selectedRouteId || !selectedBusId || !selectedStationId || !userId) {
+      toast.error("Please select route, bus, and station");
+      return;
+    }
 
     try {
       setIsProcessing(true);
@@ -52,7 +56,6 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ open, onOpenChan
       );
 
       if (session && session.url) {
-        // Redirect to Stripe checkout
         await stripeService.redirectToCheckout(session.url);
       } else {
         toast.error("Failed to create payment session");
@@ -65,64 +68,73 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ open, onOpenChan
     }
   };
 
+  const filteredBuses = buses.filter(bus => 
+    bus.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg w-[95vw] p-0 overflow-visible bg-gray-900 border-gray-700">
-        <form
-          className="bg-gray-900 rounded-lg shadow overflow-hidden"
-          onSubmit={e => {
-            e.preventDefault();
-            handleProceedToCheckout();
-          }}>
-          <DialogHeader className="bg-gradient-to-r from-blue-600/20 to-transparent px-6 py-4 border-b border-gray-700">
-            <DialogTitle className="flex items-center text-lg sm:text-xl text-white">
-              <MapPin className="mr-2 text-blue-400 h-5 w-5" />
-              Buy a New Ticket
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 bg-gray-50">
+        <div className="bg-white">
+          <DialogHeader className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 text-white">
+            <DialogTitle className="flex items-center text-xl">
+              <MapPin className="mr-2 h-6 w-6" />
+              🎟️ Bus Ticket Booking
             </DialogTitle>
-            <DialogDescription className="text-gray-400">Select route, bus, and station to purchase</DialogDescription>
+            <DialogDescription className="text-blue-100">
+              Select your route, bus, and boarding station
+            </DialogDescription>
           </DialogHeader>
           
-          <div className="p-6 space-y-4">
-            <RouteSelector
+          <div className="p-6">
+            <TicketBookingForm
               routes={routes}
-              selectedRouteId={selectedRouteId}
-              loading={loadingRoutes}
-              onRouteChange={setSelectedRouteId}
-            />
-
-            <BusSelector
-              buses={buses}
-              selectedBusId={selectedBusId}
-              selectedRouteId={selectedRouteId}
-              loading={loadingBuses}
-              onBusChange={setSelectedBusId}
-            />
-
-            <StationSelector
+              buses={filteredBuses}
               stations={stations}
-              selectedStationId={selectedStationId}
+              selectedRouteId={selectedRouteId}
               selectedBusId={selectedBusId}
-              loading={loadingStations}
+              selectedStationId={selectedStationId}
+              selectedRoute={selectedRoute}
+              selectedBus={selectedBus}
+              selectedStation={selectedStation}
+              loadingRoutes={loadingRoutes}
+              loadingBuses={loadingBuses}
+              loadingStations={loadingStations}
+              searchQuery={searchQuery}
+              price={price}
+              onRouteChange={setSelectedRouteId}
+              onBusChange={setSelectedBusId}
               onStationChange={setSelectedStationId}
+              onSearchChange={setSearchQuery}
             />
-
-            <PriceDisplay price={price} />
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row justify-between items-center border-t border-gray-700 p-4 bg-gray-800">
-            <DialogClose asChild>
-              <Button variant="outline" className="w-full sm:w-auto bg-gray-700 border-gray-600 text-white hover:bg-gray-600">Cancel</Button>
-            </DialogClose>
-            <Button
-              type="submit"
-              disabled={!selectedRouteId || !selectedBusId || !selectedStationId || isProcessing}
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <CreditCard className="mr-2 h-4 w-4" />
-              {isProcessing ? "Redirecting..." : "Proceed to Payment"}
-            </Button>
+          <DialogFooter className="flex flex-col sm:flex-row justify-between items-center border-t border-gray-200 p-6 bg-gray-50">
+            <div className="flex items-center mb-4 sm:mb-0">
+              {price > 0 && (
+                <div className="text-lg font-semibold text-green-600">
+                  Total: ₹{price}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-3">
+              <DialogClose asChild>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button
+                onClick={handleProceedToCheckout}
+                disabled={!selectedRouteId || !selectedBusId || !selectedStationId || isProcessing}
+                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                {isProcessing ? "Processing..." : `Pay ₹${price}`}
+              </Button>
+            </div>
           </DialogFooter>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
