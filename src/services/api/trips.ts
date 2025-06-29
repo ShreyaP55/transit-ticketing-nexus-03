@@ -10,7 +10,7 @@ export const tripsAPI = {
         userId, 
         latitude, 
         longitude,
-        busId: "default_bus_id", // You may want to pass this from QR scanner
+        busId: "default_bus_id",
         startCoords: { lat: latitude, lng: longitude }
       }),
     });
@@ -31,8 +31,12 @@ export const tripsAPI = {
     try {
       const response: any = await fetchAPI(`/trips/active/${userId}`);
       return (response && typeof response === 'object' && response.active) ? response.trip : null;
-    } catch (error) {
-      return null;
+    } catch (error: any) {
+      // If it's a 404 or access denied, return null instead of throwing
+      if (error.message.includes('404') || error.message.includes('Access denied')) {
+        return null;
+      }
+      throw error;
     }
   },
 
@@ -40,6 +44,7 @@ export const tripsAPI = {
     try {
       return await fetchAPI(`/trips/user/${userId}`);
     } catch (error) {
+      console.error('Error getting user trips:', error);
       return [];
     }
   },

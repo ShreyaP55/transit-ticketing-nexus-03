@@ -1,22 +1,34 @@
 
+import { useAuth } from "@clerk/clerk-react";
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
-// Get auth token for API calls
-export const getAuthToken = () => {
-  // Try to get Clerk user token first, then fallback to localStorage
-  if (typeof window !== 'undefined') {
-    try {
-      // Check if we're in a Clerk context
-      const clerkToken = localStorage.getItem('__clerk_db_jwt');
-      if (clerkToken) {
-        return clerkToken;
-      }
-    } catch (error) {
-      console.log('No Clerk token found, using fallback');
+// Get auth token for API calls - Updated to properly use Clerk
+export const getAuthToken = async (): Promise<string | null> => {
+  try {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined') {
+      return localStorage.getItem("userId") || localStorage.getItem("authToken");
     }
+
+    // Try to get Clerk token from the global Clerk instance
+    if (window.Clerk && window.Clerk.session) {
+      try {
+        const token = await window.Clerk.session.getToken();
+        if (token) {
+          return token;
+        }
+      } catch (error) {
+        console.log('Error getting Clerk token:', error);
+      }
+    }
+
+    // Fallback to localStorage
+    return localStorage.getItem("userId") || localStorage.getItem("authToken");
+  } catch (error) {
+    console.error('Error in getAuthToken:', error);
+    return localStorage.getItem("userId") || localStorage.getItem("authToken");
   }
-  
-  return localStorage.getItem("userId") || localStorage.getItem("authToken");
 };
 
 // Helper function for API calls with better error handling and rate limiting
@@ -24,7 +36,7 @@ export async function fetchAPI<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const authToken = getAuthToken();
+  const authToken = await getAuthToken();
   
   const headers = {
     "Content-Type": "application/json",
@@ -80,3 +92,58 @@ export async function fetchAPI<T>(
     throw error;
   }
 }
+
+// Hook to get authenticated API functions
+export const useAuthenticatedAPI = () => {
+  const { getToken, isSignedIn, userId } = useAuth();
+
+  const getAuthenticatedToken = async (): Promise<string | null> => {
+    try {
+      if (!isSignedIn) {
+        return null;
+      }
+      return await getToken();
+    } catch (error) {
+      console.error('Error getting authenticated token:', error);
+      return null;
+    }
+  };
+
+  const authenticatedFetch = async <T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> => {
+    const token = await getAuthenticatedToken();
+    
+    const headers = {
+      "Content-Type": "application/json",
+      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      ...(options.headers || {})
+    };
+
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let error;
+      try {
+        error = JSON.parse(errorText);
+      } catch (e) {
+        error = { error: `HTTP ${response.status}: ${response.statusText}` };
+      }
+      throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  };
+
+  return {
+    authenticatedFetch,
+    getAuthenticatedToken,
+    isAuthenticated: isSignedIn,
+    userId
+  };
+};
