@@ -73,12 +73,8 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ open, onOpenChan
 
   const canProceed = selectedRouteId && selectedBusId && selectedStationId;
 
-  const handleOpenChange = (newOpen: boolean) => {
-    onOpenChange(newOpen);
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 bg-gray-50">
         <div className="bg-white">
           <TicketModalHeader />
