@@ -11,7 +11,7 @@ import { TicketModalFooter } from "./modal/TicketModalFooter";
 
 interface NewTicketModalProps {
   open: boolean;
-  onOpenChange: (val: boolean) => void;
+  onOpenChange: (open: boolean) => void;
 }
 
 export const NewTicketModal: React.FC<NewTicketModalProps> = ({ open, onOpenChange }) => {
