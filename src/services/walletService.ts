@@ -1,3 +1,4 @@
+
 import { IWallet, ITransaction } from "@/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchAPI } from "./api/base";
@@ -8,9 +9,12 @@ export const walletService = {
   getBalance: async (userId: string, authToken?: string): Promise<IWallet> => {
     try {
       console.log('Fetching wallet balance for user:', userId);
-      const wallet = await fetchAPI<IWallet>(`/wallet/${userId}`);
+      const response = await fetchAPI<IWallet | { wallet: IWallet }>(`/wallet/${userId}`);
       
-      const processedWallet = {
+      // Handle both direct wallet response and wrapped response
+      const wallet = 'wallet' in response ? response.wallet : response;
+      
+      const processedWallet: IWallet = {
         ...wallet,
         transactions: wallet.transactions || [],
         createdAt: wallet.createdAt || new Date().toISOString(),
@@ -34,12 +38,14 @@ export const walletService = {
 
   addFunds: async (userId: string, amount: number, authToken?: string): Promise<IWallet> => {
     try {
-      const result = await fetchAPI<{ wallet: IWallet }>(`/wallet/${userId}/add`, {
+      const response = await fetchAPI<IWallet | { wallet: IWallet }>(`/wallet/${userId}/add`, {
         method: 'POST',
         body: JSON.stringify({ amount }),
       });
       
-      const wallet = result.wallet || result;
+      // Handle both direct wallet response and wrapped response
+      const wallet = 'wallet' in response ? response.wallet : response;
+      
       return {
         ...wallet,
         transactions: wallet.transactions || [],
@@ -54,12 +60,14 @@ export const walletService = {
 
   deductFunds: async (userId: string, amount: number, description: string, authToken?: string): Promise<IWallet> => {
     try {
-      const result = await fetchAPI<{ wallet: IWallet }>(`/wallet/${userId}/deduct`, {
+      const response = await fetchAPI<IWallet | { wallet: IWallet }>(`/wallet/${userId}/deduct`, {
         method: 'POST',
         body: JSON.stringify({ amount, description }),
       });
       
-      const wallet = result.wallet || result;
+      // Handle both direct wallet response and wrapped response
+      const wallet = 'wallet' in response ? response.wallet : response;
+      
       return {
         ...wallet,
         transactions: wallet.transactions || [],
